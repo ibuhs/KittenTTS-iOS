@@ -29,3 +29,6 @@ voices_*.json
 
 # Xcode workspace (use xcodeproj or xcworkspace)
 *.xcworkspace
+
+# Keep Packages tracked
+!Packages/
