@@ -336,18 +336,55 @@ class KittenTTSEngine: ObservableObject {
             return simpleTokenize(text)
         }
         
-        // Preprocess text to handle acronyms
-        let processedText = preprocessText(text)
+        // Ensure text ends with punctuation (like Python ensure_punctuation)
+        var processedText = preprocessText(text).trimmingCharacters(in: .whitespaces)
+        if !processedText.isEmpty && !".!?,;:".contains(processedText.last!) {
+            processedText += ","
+        }
         
         // Convert text to phonemes using MisakiSwift
         let (phonemes, _) = g2p.phonemize(text: processedText)
-        print("Phonemes: \(phonemes)")
+        
+        // Apply basic_english_tokenize: split on word boundaries, rejoin with spaces
+        // This matches Python: phonemes = ' '.join(re.findall(r"\w+|[^\w\s]", phonemes))
+        let tokenized = basicEnglishTokenize(phonemes)
+        print("Phonemes: \(tokenized)")
         
         // Convert phonemes to token IDs using Kokoro-style vocabulary
-        let tokens = phonemesToTokens(phonemes)
+        let tokens = phonemesToTokens(tokenized)
         
         // Pad with start/end tokens
         return [0] + tokens + [0]
+    }
+    
+    // Matches Python: re.findall(r"\w+|[^\w\s]", text) then ' '.join()
+    private func basicEnglishTokenize(_ text: String) -> String {
+        var tokens: [String] = []
+        var currentWord = ""
+        
+        for char in text {
+            if char.isLetter || char.isNumber || char == "_" {
+                currentWord.append(char)
+            } else if !char.isWhitespace {
+                // Punctuation or special char
+                if !currentWord.isEmpty {
+                    tokens.append(currentWord)
+                    currentWord = ""
+                }
+                tokens.append(String(char))
+            } else {
+                // Whitespace
+                if !currentWord.isEmpty {
+                    tokens.append(currentWord)
+                    currentWord = ""
+                }
+            }
+        }
+        if !currentWord.isEmpty {
+            tokens.append(currentWord)
+        }
+        
+        return tokens.joined(separator: " ")
     }
     
     private func simpleTokenize(_ text: String) -> [Int64] {
