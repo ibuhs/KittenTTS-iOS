@@ -1,6 +1,6 @@
 # KittenTTS iOS
 
-Native iOS implementation of [KittenTTS](https://github.com/KittenML/KittenTTS) using ONNX Runtime and MisakiSwift for phonemization.
+Native iOS implementation of [KittenTTS](https://github.com/KittenML/KittenTTS) using ONNX Runtime and [MisakiSwift](https://github.com/mlalma/MisakiSwift) for grapheme-to-phoneme conversion.
 
 ## Features
 
@@ -9,6 +9,14 @@ Native iOS implementation of [KittenTTS](https://github.com/KittenML/KittenTTS) 
 - ⚡ **Fast Inference**: ~300ms on iPhone for nano model
 - 🔤 **Smart Phonemization**: MisakiSwift G2P with acronym expansion
 - 📱 **Native SwiftUI**: Clean, modern interface
+
+## Quick Start Checklist
+
+- [ ] Clone repository
+- [ ] Run `pod install`
+- [ ] Copy model files from `models/` to Xcode bundle (or download from HuggingFace)
+- [ ] Open `KittenTTS.xcworkspace`
+- [ ] Build and run
 
 ## Requirements
 
@@ -21,70 +29,78 @@ Native iOS implementation of [KittenTTS](https://github.com/KittenML/KittenTTS) 
 ### 1. Clone and Install Dependencies
 
 ```bash
-git clone https://github.com/kailaDev/KittenTTS-iOS.git
+git clone https://github.com/ibuhs/KittenTTS-iOS.git
 cd KittenTTS-iOS
 pod install
 ```
 
-### 2. Download Model Files
+### 2. Add Model Files to Xcode
 
-Download from HuggingFace:
+Model files are included in `models/` directory. Drag these into the KittenTTS folder in Xcode:
 
-```bash
-# Nano model (recommended - fastest)
-curl -L -o kitten_tts_nano_v0_8.onnx "https://huggingface.co/KittenML/kitten-tts-nano-0.8/resolve/main/kitten_tts_nano_v0_8.onnx"
-curl -L -o voices.npz "https://huggingface.co/KittenML/kitten-tts-nano-0.8/resolve/main/voices.npz"
+**Required (Nano - recommended):**
+- `models/kitten_tts_nano_v0_8.onnx`
+- `models/voices_nano.json`
 
-# Optional: Micro model
-curl -L -o kitten_tts_micro_v0_8.onnx "https://huggingface.co/KittenML/kitten-tts-micro-0.8/resolve/main/kitten_tts_micro_v0_8.onnx"
+**Optional (Micro/Mini):**
+- `models/kitten_tts_micro_v0_8.onnx` + `models/voices_micro.json`
+- `models/kitten_tts_mini_v0_8.onnx` + `models/voices_mini.json`
 
-# Optional: Mini model  
-curl -L -o kitten_tts_mini_v0_8.onnx "https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/kitten_tts_mini_v0_8.onnx"
-```
-
-### 3. Convert Voice Embeddings to JSON
-
-```python
-import numpy as np, json
-
-aliases = {
-    'Bella': 'expr-voice-2-f', 'Jasper': 'expr-voice-2-m',
-    'Luna': 'expr-voice-3-f', 'Bruno': 'expr-voice-3-m',
-    'Rosie': 'expr-voice-4-f', 'Hugo': 'expr-voice-4-m',
-    'Kiki': 'expr-voice-5-f', 'Leo': 'expr-voice-5-m'
-}
-
-v = np.load('voices.npz')
-output = {name: v[internal].tolist() for name, internal in aliases.items()}
-with open('voices_nano.json', 'w') as f:
-    json.dump(output, f)
-```
-
-### 4. Add Files to Xcode Bundle
-
-Drag these files into the KittenTTS folder in Xcode:
-- `kitten_tts_nano_v0_8.onnx`
-- `voices_nano.json`
-
-### 5. Build and Run
+### 3. Build and Run
 
 ```bash
 open KittenTTS.xcworkspace
 ```
 
+## Model Comparison
+
+| Model | Parameters | Size | Inference (iPhone) | Quality |
+|-------|------------|------|-------------------|---------|
+| **Nano** | 15M | 54MB | ~300ms | ⭐⭐⭐⭐⭐ Best |
+| Micro | 40M | 40MB | ~1000ms | ⭐⭐⭐ Good |
+| Mini | 80M | 75MB | ~1800ms | ⭐⭐⭐ Good |
+
+> **Note**: The Nano model provides the best balance of speed and quality. Micro and Mini models may have pronunciation variations on some words.
+
+## Known Issues
+
+- [ ] **Micro/Mini pronunciation**: Larger models may have less stable pronunciation on certain words compared to Nano
+- [ ] **Acronyms**: Some acronyms need manual expansion (iOS, TTS, API are handled automatically)
+
 ## Architecture
 
-- **KittenTTSEngine.swift**: ONNX Runtime inference, audio playback
-- **ContentView.swift**: SwiftUI interface  
-- **MisakiSwift**: G2P phonemization (local static package)
-- **onnxruntime-objc**: ONNX inference (CocoaPods)
+```
+KittenTTS/
+├── KittenTTSEngine.swift    # ONNX inference, audio playback
+├── ContentView.swift        # SwiftUI interface
+├── Packages/
+│   ├── MisakiSwift-static/  # G2P phonemization
+│   └── MLXUtilsLibrary-static/
+└── Podfile                  # onnxruntime-objc dependency
+```
+
+## Phonemization
+
+This project uses [MisakiSwift](https://github.com/mlalma/MisakiSwift) by [@mlalma](https://github.com/mlalma) for grapheme-to-phoneme (G2P) conversion. MisakiSwift is a Swift port of the [Misaki](https://github.com/hexgrad/misaki) G2P library, providing:
+
+- Dictionary-based lookup for common words
+- Neural network fallback (BART) for unknown words
+- IPA phoneme output compatible with Kokoro/KittenTTS models
+
+The phonemization pipeline:
+1. Text preprocessing (acronym expansion)
+2. MisakiSwift G2P conversion
+3. Basic English tokenization (word boundary splitting)
+4. Vocabulary mapping to token IDs
 
 ## Credits
 
-- [KittenTTS](https://github.com/KittenML/KittenTTS) - Original model by KittenML
-- [MisakiSwift](https://github.com/mlalma/MisakiSwift) - G2P phonemization
-- [ONNX Runtime](https://github.com/microsoft/onnxruntime) - Inference engine
+- **[KittenTTS](https://github.com/KittenML/KittenTTS)** - Original TTS model by KittenML
+- **[MisakiSwift](https://github.com/mlalma/MisakiSwift)** - Swift G2P phonemization by [@mlalma](https://github.com/mlalma)
+- **[Misaki](https://github.com/hexgrad/misaki)** - Original Python G2P library
+- **[ONNX Runtime](https://github.com/microsoft/onnxruntime)** - Cross-platform inference engine
+- **[MLX](https://github.com/ml-explore/mlx-swift)** - Apple's ML framework (used by MisakiSwift)
 
 ## License
 
-MIT
+Apache 2.0
